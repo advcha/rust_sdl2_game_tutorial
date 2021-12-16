@@ -5,7 +5,8 @@ Install SDL2 libraries:
 ## MacOS
 brew install sdl2 sdl2_image sdl2_ttf
 
-## Add to ~/.bash_profile if not already present
+Then Add to ~/.bash_profile if not already present
+
 export LIBRARY_PATH="$LIBRARY_PATH:/usr/local/lib"
 
 ## Ubuntu (note the -dev suffix)

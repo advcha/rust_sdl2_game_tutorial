@@ -7,19 +7,59 @@ use sdl2::rect::{Point, Rect};
 use sdl2::image::{self, LoadTexture, InitFlag};
 use std::time::Duration;
 
-fn render(canvas: &mut WindowCanvas, color: Color, texture: &Texture, position: Point, sprite: Rect) -> Result<(), String> {
+const PLAYER_MOVEMENT_SPEED:i32 = 5;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Direction {
+    Up,
+    Down,
+    Left,
+    Right,
+}
+
+#[derive(Debug)]
+struct Player {
+    position: Point,
+    sprite: Rect,
+    speed: i32,
+    direction: Direction,
+}
+
+fn render(canvas: &mut WindowCanvas, color: Color, texture: &Texture, player: &Player) -> Result<(), String> {
     canvas.set_draw_color(color);
     canvas.clear();
     let (width, height) = canvas.output_size()?;
 
     // Treat the center of the screen as the (0, 0) coordinate
-    let screen_position = position + Point::new(width as i32 / 2, height as i32 / 2);
-    let screen_rect = Rect::from_center(screen_position, sprite.width(), sprite.height());
+    let screen_position = player.position + Point::new(width as i32 / 2, height as i32 / 2);
+    //println!("{:?}", screen_position);
+    let screen_rect = Rect::from_center(screen_position, player.sprite.width(), player.sprite.height());
+    //println!("{:?}", screen_rect);
     //canvas.copy(texture, None, None)?;
-    canvas.copy(texture, sprite, screen_rect)?;
+    canvas.copy(texture, player.sprite, screen_rect)?;
     
     canvas.present();
     Ok(())
+}
+
+// Update player a fixed amount based on their speed.
+// WARNING: Calling this function too often or at a variable speed will cause the player's speed to be unpredictable!
+fn update_player(player: &mut Player) {
+    use self::Direction::*;
+    match player.direction {
+        Left => {
+            player.position = player.position.offset(-player.speed, 0);
+        },
+        Right => {
+            player.position = player.position.offset(player.speed, 0);
+        },
+        Up => {
+            player.position = player.position.offset(0, -player.speed);
+        },
+        Down => {
+            player.position = player.position.offset(0, player.speed);
+        },
+    }
 }
 
 fn main() -> Result<(), String> {
@@ -46,9 +86,16 @@ fn main() -> Result<(), String> {
     canvas.clear();
     canvas.present();*/
 
-    let position = Point::new(0, 0);
+    /*let position = Point::new(0, 0);
     // src position in the spritesheet
-    let sprite = Rect::new(0, 0, 26, 36);
+    let sprite = Rect::new(0, 0, 26, 36);*/
+
+    let mut player = Player {
+        position: Point::new(0, 0),
+        sprite: Rect::new(0, 0, 26, 36),
+        speed: 0,
+        direction: Direction::Right,
+    };
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut i = 0;
@@ -64,16 +111,42 @@ fn main() -> Result<(), String> {
                 Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                     break 'running;
                 },
+                Event::KeyDown { keycode: Some(Keycode::Left), repeat: false, .. } => {
+                    player.speed = PLAYER_MOVEMENT_SPEED;
+                    player.direction = Direction::Left;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Right), repeat: false, .. } => {
+                    player.speed = PLAYER_MOVEMENT_SPEED;
+                    player.direction = Direction::Right;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Up), repeat: false, .. } => {
+                    player.speed = PLAYER_MOVEMENT_SPEED;
+                    player.direction = Direction::Up;
+                },
+                Event::KeyDown { keycode: Some(Keycode::Down), repeat: false, .. } => {
+                    player.speed = PLAYER_MOVEMENT_SPEED;
+                    player.direction = Direction::Down;
+                },
+                Event::KeyUp { keycode: Some(Keycode::Left), repeat: false, .. } |
+                Event::KeyUp { keycode: Some(Keycode::Right), repeat: false, .. } |
+                Event::KeyUp { keycode: Some(Keycode::Up), repeat: false, .. } |
+                Event::KeyUp { keycode: Some(Keycode::Down), repeat: false, .. } => {
+                    player.speed = 0;
+                },
                 _ => {}
             }
         }
         // Update
         i = (i + 1) % 255;
 
-        // Render
-        render(&mut canvas, Color::RGB(i, 64, 255 - i), &texture, position, sprite)?;
+        //Update player movement
+        update_player(&mut player);
 
-        canvas.present();
+        // Render
+        //render(&mut canvas, Color::RGB(i, 64, 255 - i), &texture, position, sprite)?;
+        render(&mut canvas, Color::RGB(i, 64, 255 - i), &texture, &player)?;
+
+        //canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
     }
 
