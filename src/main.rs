@@ -3,6 +3,7 @@ mod physics;
 mod animator;
 mod keyboard;
 mod renderer;
+mod ai;
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
@@ -58,6 +59,46 @@ fn character_animation_frames(spritesheet: usize, top_left_frame: Rect, directio
     frames
 }
 
+fn initialize_player(world: &mut World, player_spritesheet: usize) {
+  let player_top_left_frame = Rect::new(0, 0, 26, 36);
+
+  let player_animation = MovementAnimation {
+      current_frame: 0,
+      up_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Up),
+      down_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Down),
+      left_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Left),
+      right_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Right),
+  };
+
+  world.create_entity()
+      .with(KeyboardControlled)
+      .with(Position(Point::new(0, 0)))
+      .with(Velocity {speed: 0, direction: Direction::Right})
+      .with(player_animation.right_frames[0].clone())
+      .with(player_animation)
+      .build();
+}
+
+fn initialize_enemy(world: &mut World, enemy_spritesheet: usize, position: Point) {
+  let enemy_top_left_frame = Rect::new(0, 0, 32, 36);
+
+  let enemy_animation = MovementAnimation {
+      current_frame: 0,
+      up_frames: character_animation_frames(enemy_spritesheet, enemy_top_left_frame, Direction::Up),
+      down_frames: character_animation_frames(enemy_spritesheet, enemy_top_left_frame, Direction::Down),
+      left_frames: character_animation_frames(enemy_spritesheet, enemy_top_left_frame, Direction::Left),
+      right_frames: character_animation_frames(enemy_spritesheet, enemy_top_left_frame, Direction::Right),
+  };
+
+  world.create_entity()
+      .with(Enemy)
+      .with(Position(position))
+      .with(Velocity {speed: 0, direction: Direction::Right})
+      .with(enemy_animation.right_frames[0].clone())
+      .with(enemy_animation)
+      .build();
+}
+
 fn main() -> Result<(), String> {
     let sdl_context = sdl2::init()?;
     let video_subsystem = sdl_context.video()?;
@@ -77,8 +118,9 @@ fn main() -> Result<(), String> {
 
     let mut dispatcher = DispatcherBuilder::new()
         .with(keyboard::Keyboard, "Keyboard", &[])
-        .with(physics::Physics, "Physics", &["Keyboard"])
-        .with(animator::Animator, "Animator", &["Keyboard"])
+        .with(ai::AI, "AI", &[])
+        .with(physics::Physics, "Physics", &["Keyboard", "AI"])
+        .with(animator::Animator, "Animator", &["Keyboard", "AI"])
         .build();
 
     let mut world = World::new();
@@ -94,26 +136,18 @@ fn main() -> Result<(), String> {
 
     let textures = [
         texture_creator.load_texture("assets/bardo.png")?,
+        texture_creator.load_texture("assets/reaper.png")?,
     ];
     // First texture in textures array
     let player_spritesheet = 0;
-    let player_top_left_frame = Rect::new(0, 0, 26, 36);
+    // Second texture in the textures array
+    let enemy_spritesheet = 1;
 
-    let player_animation = MovementAnimation {
-        current_frame: 0,
-        up_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Up),
-        down_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Down),
-        left_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Left),
-        right_frames: character_animation_frames(player_spritesheet, player_top_left_frame, Direction::Right),
-    };
+    initialize_player(&mut world, player_spritesheet);
 
-    world.create_entity()
-        .with(KeyboardControlled)
-        .with(Position(Point::new(0, 0)))
-        .with(Velocity {speed: 0, direction: Direction::Right})
-        .with(player_animation.right_frames[0].clone())
-        .with(player_animation)
-        .build();
+    initialize_enemy(&mut world, enemy_spritesheet, Point::new(-150, -150));
+    initialize_enemy(&mut world, enemy_spritesheet, Point::new(150, -190));
+    initialize_enemy(&mut world, enemy_spritesheet, Point::new(-150, 170));
 
     let mut event_pump = sdl_context.event_pump()?;
     let mut i = 0;
